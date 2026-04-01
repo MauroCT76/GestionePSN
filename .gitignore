@@ -1,0 +1,22 @@
+# Ambienti virtuali
+venv/
+env/
+.env
+
+# File di database locali
+*.db
+*.sqlite3
+instance/
+
+# File compilati Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# File di sistema e IDE
+.VSCode/
+.idea/
+.DS_Store
+
+# File temporanei Excel
+~$*.xlsx
