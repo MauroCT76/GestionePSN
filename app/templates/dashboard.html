@@ -15,15 +15,18 @@
         .psn-header { padding: 15px; border-radius: 12px 12px 0 0; color: white; }
         .pila-impegni { padding: 15px; min-height: 400px; background-color: #fafafa; border: 2px dashed transparent; transition: all 0.3s ease; flex-grow: 1; }
         .pila-impegni.sortable-chosen { border-color: #004a99; background-color: #eef6ff; }
+        
         .tessera { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; position: relative; transition: transform 0.2s; border-left: 6px solid #ccc; }
+        .tessera:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
         .tessera:active { cursor: grabbing; transform: scale(1.02); }
         .tessera.personale { border-left-color: #198754; } 
         .tessera.materiale { border-left-color: #ffc107; } 
-        .tessera.storico { border-left-color: #6c757d; background-color: #f8f9fa; opacity: 0.8; }
+        .tessera.storico { border-left-color: #6c757d; background-color: #f8f9fa; opacity: 0.6; cursor: not-allowed; }
         .tessera-info { font-size: 0.85rem; margin-top: 5px; color: #666; }
-        .badge-determina { font-size: 0.7rem; background: #004a99; color: white; padding: 2px 6px; border-radius: 4px; }
+        
         .psn-container::-webkit-scrollbar { height: 10px; }
         .psn-container::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 5px; }
+        .label-small { font-size: 0.65rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -31,12 +34,10 @@
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
     <div class="container-fluid">
         <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i>Gestione PSN Catania</a>
-        
         <div class="d-flex align-items-center">
             <button class="btn btn-sm btn-outline-light me-3" data-bs-toggle="modal" data-bs-target="#modalNuovoPSN">
                 <i class="fas fa-folder-plus"></i> Nuovo PSN
             </button>
-
             <form action="{{ url_for('main.import_excel') }}" method="post" enctype="multipart/form-data" class="me-3">
                 <div class="input-group input-group-sm">
                     <input type="file" name="file" class="form-control" id="inputGroupFile02" onchange="this.form.submit()">
@@ -54,15 +55,18 @@
     <div class="row">
         <div class="col-md-3 border-end">
             <div class="p-2">
-                <button class="btn btn-primary w-100 mb-4" data-bs-toggle="modal" data-bs-target="#modalNuovoImpegno">
+                <button class="btn btn-primary w-100 mb-4" onclick="apriNuovoImpegno()">
                     <i class="fas fa-plus me-2"></i>Nuova Tessera Impegno
                 </button>
-
                 <h6 class="text-uppercase fw-bold text-muted mb-3">Impegni da Assegnare</h6>
-                <div id="impegni-liberi" class="pila-impegni" style="min-height: 70vh;">
+                
+                <div id="impegni-liberi" class="pila-impegni" data-psn-id="null" style="min-height: 70vh;">
                     {% for imp in impegni_liberi %}
-                    <div class="tessera {{ imp.tipo.lower() }}" data-id="{{ imp.id }}">
-                        <div class="fw-bold">{{ imp.titolo }}</div>
+                    <div class="tessera {{ imp.tipo.lower() }}" data-id="{{ imp.id }}" onclick="apriDettaglioImpegno('{{ imp.id }}')">
+                        <div class="fw-bold">
+                            {{ imp.titolo }} 
+                            {% if imp.numero_nota %}<span class="text-muted small fw-normal ms-1">(Nota {{ imp.numero_nota }})</span>{% endif %}
+                        </div>
                         <div class="tessera-info">
                             <span><i class="fas fa-tag me-1"></i>{{ imp.tipo }}</span><br>
                             <span class="text-primary fw-bold">€ {{ "{:,.2f}".format(imp.costo_previsto) }}</span>
@@ -75,34 +79,34 @@
 
         <div class="col-md-9">
             <div class="psn-container">
-                {% if progetti|length == 0 %}
-                <div class="alert alert-info w-100 text-center mt-5">
-                    Nessun Progetto PSN trovato. Importa un file Excel o creane uno manualmente.
-                </div>
-                {% endif %}
-
                 {% for p in progetti %}
                 <div class="psn-card">
                     <div class="psn-header {{ p.badge_colore }}">
                         <div class="d-flex justify-content-between align-items-start">
-                            <h6 class="mb-0 fw-bold">{{ p.referenti }}</h6>
-                            <span class="badge bg-white text-dark">{{ p.anno_riferimento }}</span>
+                            <h6 class="mb-0 fw-bold pe-2" title="{{ p.azioni }}">{{ p.azioni }}</h6>
+                            <div class="text-end" style="min-width: 80px;">
+                                <span class="badge bg-white text-dark mb-1 d-block" style="font-size: 0.65rem;">ASS: {{ p.anno_assegnazione }}</span>
+                                <span class="badge bg-white text-dark d-block" style="font-size: 0.65rem;">RIF: {{ p.anno_riferimento }}</span>
+                            </div>
                         </div>
-                        <div class="mt-2 small">
-                            <i class="fas fa-wallet me-1"></i> Budget: € {{ "{:,.2f}".format(p.quota_assegnata) }}
+                        <div class="mt-2 small d-flex justify-content-between align-items-end">
+                            <span><i class="fas fa-wallet me-1"></i> Budget: € {{ "{:,.2f}".format(p.quota_assegnata) }}</span>
+                            <span class="text-truncate ps-2" style="max-width: 150px; text-align: right;" title="{{ p.referenti }}">
+                                <i class="fas fa-user me-1"></i>{{ p.referenti }}
+                            </span>
                         </div>
                     </div>
                     
                     <div class="p-3 bg-light border-bottom">
                         <div class="row text-center">
                             <div class="col-6 border-end">
-                                <div class="small text-muted text-uppercase">Odierna</div>
+                                <div class="text-muted text-uppercase label-small">Disp. con Det.</div>
                                 <div class="fw-bold {% if p.disponibilita_odierna < 0 %}text-danger{% endif %}">
                                     € {{ "{:,.2f}".format(p.disponibilita_odierna) }}
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="small text-muted text-uppercase">Prog.</div>
+                                <div class="text-muted text-uppercase label-small">Disp. con Imp.</div>
                                 <div class="fw-bold {% if p.disponibilita_con_impegni < 0 %}text-danger{% endif %}">
                                     € {{ "{:,.2f}".format(p.disponibilita_con_impegni) }}
                                 </div>
@@ -112,10 +116,21 @@
 
                     <div class="pila-impegni" data-psn-id="{{ p.id }}">
                         {% for ass in p.assegnazioni %}
-                        <div class="tessera {{ ass.impegno.tipo.lower() if ass.impegno.stato_logico != 'storico' else 'storico' }}" data-id="{{ ass.impegno.id }}">
-                            <div class="fw-bold">{{ ass.impegno.titolo }}</div>
+                        <div class="tessera {{ ass.impegno.tipo.lower() if not ass.storico else 'storico' }}" 
+                             data-id="{{ ass.impegno.id }}" 
+                             onclick="apriDettaglioImpegno('{{ ass.impegno.id }}')">
+                            <div class="fw-bold">
+                                {{ ass.impegno.titolo }}
+                                {% if ass.impegno.numero_nota %}<span class="text-muted small fw-normal ms-1">(Nota {{ ass.impegno.numero_nota }})</span>{% endif %}
+                            </div>
                             <div class="tessera-info">
                                 <span class="fw-bold text-dark">€ {{ "{:,.2f}".format(ass.costo_assegnato) }}</span>
+                                {% if ass.storico %}
+                                <br><span class="badge bg-secondary mt-1" style="font-size: 0.65rem;">STORICO</span>
+                                {% endif %}
+                                {% if not ass.storico and ass.impegno.num_determina %}
+                                <br><span class="badge bg-primary mt-1" style="font-size: 0.65rem;">Det. {{ ass.impegno.num_determina }}</span>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -123,6 +138,94 @@
                 </div>
                 {% endfor %}
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDettaglioImpegno" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="formEditImpegno" method="post">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="modalImpegnoTitle"><i class="fas fa-edit me-2"></i>Pannello Impegno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label text-muted small fw-bold">Titolo / Oggetto</label>
+                            <input type="text" name="titolo" id="edit_titolo" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Tipologia</label>
+                            <select name="tipo" id="edit_tipo" class="form-select">
+                                <option value="Personale">Personale</option>
+                                <option value="Materiale">Materiale</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Costo Originale (€)</label>
+                            <input type="number" name="costo_previsto" id="edit_costo_previsto" class="form-control fw-bold text-primary" step="0.01" required>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label text-muted small fw-bold">Note Libere</label>
+                            <input type="text" name="note" id="edit_note" class="form-control" placeholder="Inserisci note aggiuntive...">
+                        </div>
+                    </div>
+                    
+                    <div class="row bg-light p-2 rounded">
+                        <h6 class="mb-3 text-secondary"><i class="fas fa-file-signature me-2"></i>Fase 1: Dati Nota (Richiesta)</h6>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">Numero Nota</label>
+                            <input type="text" name="numero_nota" id="edit_numero_nota" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">Data Nota</label>
+                            <input type="date" name="data_nota" id="edit_data_nota" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="row p-2 mt-2 border rounded">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-stamp me-2"></i>Fase 2: Dati Determina (Ufficializzazione)</h6>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Numero Determina</label>
+                            <input type="text" name="num_determina" id="edit_num_determina" class="form-control border-primary">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Data Determina</label>
+                            <input type="date" name="data_determina" id="edit_data_determina" class="form-control border-primary">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Costo Definitivo (€)</label>
+                            <input type="number" name="costo_determina" id="edit_costo_determina" class="form-control border-primary" step="0.01">
+                        </div>
+                    </div>
+
+                    <div id="sezione-ripartizione" class="row p-2 mt-3 bg-light rounded" style="display:none;">
+                        <h6 class="mb-2 text-dark"><i class="fas fa-sitemap me-2"></i>Fase 3: Ripartizione Costi tra Conti PSN</h6>
+                        <p class="small text-muted mb-2">Da qui puoi spezzare l'impegno assegnando quote diverse a conti diversi.</p>
+                        
+                        <div id="ripartizione-rows"></div>
+                        
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="aggiungiRigaRipartizione()">
+                                <i class="fas fa-plus"></i> Aggiungi Quota su altro Conto
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-danger" id="btnEliminaImpegno" onclick="eliminaImpegno()">
+                        <i class="fas fa-trash me-1"></i> Elimina
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salva</button>
+                    </div>
+                </div>
+            </form>
+            <form id="formDeleteImpegno" method="post" style="display: none;"></form>
         </div>
     </div>
 </div>
@@ -154,11 +257,11 @@
                     <input type="number" name="quota_assegnata" class="form-control" step="0.01" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Conti Aziendali (opzionale)</label>
+                    <label class="form-label">Conti Aziendali</label>
                     <input type="text" name="conti_aziendali" class="form-control">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Azioni (opzionale)</label>
+                    <label class="form-label">Azioni / Titolo</label>
                     <textarea name="azioni" class="form-control" rows="2"></textarea>
                 </div>
             </div>
@@ -169,43 +272,16 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalNuovoImpegno" tabindex="-1">
-    <div class="modal-dialog">
-        <form action="{{ url_for('main.nuovo_impegno') }}" method="post" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Crea Nuova Tessera Spesa</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Titolo/Oggetto</label>
-                    <input type="text" name="titolo" class="form-control" required>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Costo Previsto (€)</label>
-                        <input type="number" name="costo_previsto" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Tipologia</label>
-                        <select name="tipo" class="form-select">
-                            <option value="Personale">Personale</option>
-                            <option value="Materiale">Materiale</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Crea ed inserisci in pila</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <script>
+    const listaPSN = [
+        {% for p in progetti %}
+        { id: {{ p.id }}, titolo: "{{ p.azioni[:40] | replace('"', '\\"') }}... ({{ p.anno_riferimento }})" },
+        {% endfor %}
+    ];
+
     const containers = document.querySelectorAll('.pila-impegni');
     containers.forEach(container => {
         new Sortable(container, {
@@ -213,18 +289,19 @@
             animation: 150,
             fallbackOnBody: true,
             swapThreshold: 0.65,
+            filter: '.storico',
             onAdd: function (evt) {
                 const impegnoId = evt.item.getAttribute('data-id');
-                const psnId = evt.to.getAttribute('data-psn-id');
+                const nuovoPsnId = evt.to.getAttribute('data-psn-id');
+                const vecchioPsnId = evt.from.getAttribute('data-psn-id');
                 
-                if (!psnId) return;
-
                 fetch('/api/assegna_impegno', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        impegno_id: impegnoId,
-                        progetto_id: psnId
+                    body: JSON.stringify({ 
+                        impegno_id: impegnoId, 
+                        progetto_id: nuovoPsnId,
+                        vecchio_progetto_id: vecchioPsnId
                     })
                 }).then(res => res.json()).then(data => {
                     if(data.status === 'success') window.location.reload();
@@ -232,7 +309,95 @@
             }
         });
     });
-</script>
 
+    const modalDettaglio = new bootstrap.Modal(document.getElementById('modalDettaglioImpegno'));
+
+    // NUOVA FUNZIONE PER CREARE UN IMPEGNO
+    function apriNuovoImpegno() {
+        document.getElementById('formEditImpegno').reset(); // Svuota i campi
+        document.getElementById('formEditImpegno').action = '/api/impegno/nuovo';
+        
+        document.getElementById('modalImpegnoTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuova Tessera Impegno';
+        document.getElementById('btnEliminaImpegno').style.display = 'none'; // Nascondi Elimina
+        document.getElementById('sezione-ripartizione').style.display = 'none'; // Nascondi ripartizione
+        
+        modalDettaglio.show();
+    }
+
+    function creaRigaRipartizione(psnIdSelezionato, costo) {
+        let options = '<option value="">Seleziona un Progetto PSN...</option>';
+        listaPSN.forEach(p => {
+            options += `<option value="${p.id}" ${p.id == psnIdSelezionato ? 'selected' : ''}>${p.titolo}</option>`;
+        });
+
+        return `
+            <div class="row ripartizione-riga mb-2 align-items-center">
+                <div class="col-8">
+                    <select name="progetto_id[]" class="form-select form-select-sm" required>
+                        ${options}
+                    </select>
+                </div>
+                <div class="col-3">
+                    <input type="number" name="costo_ripartito[]" class="form-control form-control-sm" value="${costo}" step="0.01" placeholder="Quota €" required>
+                </div>
+                <div class="col-1 text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="this.closest('.ripartizione-riga').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function aggiungiRigaRipartizione() {
+        document.getElementById('ripartizione-rows').insertAdjacentHTML('beforeend', creaRigaRipartizione('', ''));
+    }
+
+    function apriDettaglioImpegno(id) {
+        document.getElementById('formEditImpegno').reset();
+        document.getElementById('formEditImpegno').action = `/api/impegno/${id}/edit`;
+        document.getElementById('formDeleteImpegno').action = `/api/impegno/${id}/delete`;
+        
+        document.getElementById('modalImpegnoTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Pannello Impegno';
+        document.getElementById('btnEliminaImpegno').style.display = 'block'; // Mostra Elimina
+
+        fetch(`/api/impegno/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('edit_titolo').value = data.titolo;
+                document.getElementById('edit_tipo').value = data.tipo;
+                document.getElementById('edit_costo_previsto').value = data.costo_previsto;
+                document.getElementById('edit_note').value = data.note;
+                
+                document.getElementById('edit_numero_nota').value = data.numero_nota;
+                document.getElementById('edit_data_nota').value = data.data_nota;
+                
+                document.getElementById('edit_num_determina').value = data.num_determina;
+                document.getElementById('edit_data_determina').value = data.data_determina;
+                document.getElementById('edit_costo_determina').value = data.costo_determina;
+                
+                const divRipartizione = document.getElementById('sezione-ripartizione');
+                const containerRows = document.getElementById('ripartizione-rows');
+                containerRows.innerHTML = ''; 
+
+                if (data.allocazioni && data.allocazioni.length > 0) {
+                    divRipartizione.style.display = 'block';
+                    data.allocazioni.forEach(all => {
+                        containerRows.insertAdjacentHTML('beforeend', creaRigaRipartizione(all.progetto_id, all.costo));
+                    });
+                } else {
+                    divRipartizione.style.display = 'none'; 
+                }
+
+                modalDettaglio.show();
+            });
+    }
+
+    function eliminaImpegno() {
+        if(confirm("Sei sicuro di voler eliminare definitivamente questo impegno e tutte le sue assegnazioni?")) {
+            document.getElementById('formDeleteImpegno').submit();
+        }
+    }
+</script>
 </body>
 </html>
