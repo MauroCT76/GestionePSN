@@ -1,0 +1,27 @@
+<div class="modal fade" id="modalDispComunicata" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <form id="formEditDisp" method="post" class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h6 class="modal-title"><i class="fas fa-euro-sign me-2"></i>Aggiorna Disp. Comunicata</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Nuovo Valore (€)</label>
+                    <input type="number" name="disp_comunicata" id="edit_disp_comunicata" class="form-control fw-bold text-info" step="0.01" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Data Comunicazione</label>
+                    <input type="date" name="data_disp_comunicata" id="edit_data_disp" class="form-control" required>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem;">
+                    L'aggiornamento modificherà esclusivamente il campo informativo "Disp. Com." per questo progetto.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="submit" class="btn btn-sm btn-info text-white"><i class="fas fa-check me-1"></i> Salva</button>
+            </div>
+        </form>
+    </div>
+</div>

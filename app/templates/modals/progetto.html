@@ -1,0 +1,62 @@
+<div class="modal fade" id="modalDettaglioPSN" tabindex="-1">
+    <div class="modal-dialog">
+        <form id="formEditPSN" method="post" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalPSNTitle">Progetto PSN</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Anno Assegnazione</label>
+                        <input type="number" name="anno_assegnazione" id="psn_anno_assegnazione" class="form-control" required>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Anno Riferimento</label>
+                        <input type="number" name="anno_riferimento" id="psn_anno_riferimento" class="form-control" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Referente</label>
+                    <input type="text" name="referenti" id="psn_referenti" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Quota Assegnata Iniziale (€)</label>
+                    <input type="number" name="quota_assegnata" id="psn_quota_assegnata" class="form-control" step="0.01" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Conti Aziendali</label>
+                    <input type="text" name="conti_aziendali" id="psn_conti_aziendali" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Azioni / Titolo</label>
+                    <textarea name="azioni" id="psn_azioni" class="form-control" rows="3"></textarea>
+                </div>
+                
+                <hr>
+                <h6 class="text-primary mb-3">Aggiornamento Capienza (Opzionale)</h6>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Disp. Comunicata (€)</label>
+                        <input type="number" name="disp_comunicata" id="psn_disp_comunicata" class="form-control" step="0.01">
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Data Comunicazione</label>
+                        <input type="date" name="data_disp_comunicata" id="psn_data_disp_comunicata" class="form-control">
+                    </div>
+                </div>
+                
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-danger" id="btnEliminaPSN" onclick="eliminaProgetto()">
+                    <i class="fas fa-trash me-1"></i> Elimina
+                </button>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salva</button>
+                </div>
+            </div>
+        </form>
+        <form id="formDeletePSN" method="post" style="display: none;"></form>
+    </div>
+</div>

@@ -1,0 +1,102 @@
+<div class="modal fade" id="modalDettaglioImpegno" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="formEditImpegno" method="post">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="modalImpegnoTitle"><i class="fas fa-edit me-2"></i>Pannello Impegno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="alertDefinitivo" class="alert alert-warning py-2 mb-3 small" style="display: none;">
+                        <i class="fas fa-lock me-2"></i> Questo impegno è <strong>Definitivo</strong>. I dati e la ripartizione non possono più essere alterati. Puoi modificare solamente il campo Note Libere.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label text-muted small fw-bold">Titolo / Oggetto</label>
+                            <input type="text" name="titolo" id="edit_titolo" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Tipologia</label>
+                            <select name="tipo_select" id="edit_tipo_select" class="form-select" onchange="toggleCustomTipo(this.value)">
+                                <option value="Personale">Personale</option>
+                                <option value="Materiale">Materiale</option>
+                                <option value="Altro">Altro</option>
+                                <option value="custom" class="text-primary fw-bold">Testo libero...</option>
+                            </select>
+                            <input type="text" name="tipo_custom" id="edit_tipo_custom" class="form-control mt-2 border-primary" placeholder="Scrivi tipologia..." style="display: none;">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Costo Originale (€)</label>
+                            <input type="number" name="costo_previsto" id="edit_costo_previsto" class="form-control fw-bold text-primary" step="0.01" required>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label text-muted small fw-bold">Note Libere</label>
+                            <input type="text" name="note" id="edit_note" class="form-control" placeholder="Inserisci note aggiuntive... (Sempre modificabile)">
+                        </div>
+                    </div>
+                    <div class="row bg-light p-2 rounded">
+                        <h6 class="mb-3 text-secondary"><i class="fas fa-file-signature me-2"></i>Fase 1: Dati Nota (Richiesta)</h6>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">Numero Nota</label>
+                            <input type="text" name="numero_nota" id="edit_numero_nota" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">Data Nota</label>
+                            <input type="date" name="data_nota" id="edit_data_nota" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="row p-2 mt-2 border rounded">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="text-primary mb-0"><i class="fas fa-stamp me-2"></i>Fase 2: Dati Ufficializzazione</h6>
+                            <div class="bg-light px-3 py-1 rounded border">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tipo_ufficializzazione" id="radioDetermina" value="Determina" checked onchange="cambiaTipoUfficializzazione(this.value)">
+                                    <label class="form-check-label small fw-bold" for="radioDetermina">Determina</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tipo_ufficializzazione" id="radioDelibera" value="Delibera" onchange="cambiaTipoUfficializzazione(this.value)">
+                                    <label class="form-check-label small fw-bold" for="radioDelibera">Delibera</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold" id="lbl_num_ufficializzazione">Numero Determina</label>
+                            <input type="text" name="num_determina" id="edit_num_determina" class="form-control border-primary">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold" id="lbl_data_ufficializzazione">Data Determina</label>
+                            <input type="date" name="data_determina" id="edit_data_determina" class="form-control border-primary">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small fw-bold">Costo Definitivo (€)</label>
+                            <input type="number" name="costo_determina" id="edit_costo_determina" class="form-control border-primary" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div id="sezione-ripartizione" class="row p-2 mt-3 bg-light rounded" style="display:none;">
+                        <h6 class="mb-2 text-dark"><i class="fas fa-sitemap me-2"></i>Fase 3: Ripartizione Costi tra Conti PSN</h6>
+                        <p class="small text-muted mb-2" id="testo-ripartizione">Da qui puoi spezzare l'impegno assegnando quote diverse a conti diversi.</p>
+                        <div id="ripartizione-rows"></div>
+                        <div class="mt-2">
+                            <button type="button" id="btnAggiungiRipartizione" class="btn btn-sm btn-outline-secondary" onclick="aggiungiRigaRipartizione()">
+                                <i class="fas fa-plus"></i> Aggiungi Quota su altro Conto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-danger" id="btnEliminaImpegno" onclick="eliminaImpegno()">
+                        <i class="fas fa-trash me-1"></i> Elimina
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salva</button>
+                    </div>
+                </div>
+            </form>
+            <form id="formDeleteImpegno" method="post" style="display: none;"></form>
+        </div>
+    </div>
+</div>

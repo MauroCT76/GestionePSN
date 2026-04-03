@@ -4,32 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestione PSN - ASP Catania</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
-        .navbar-custom { background-color: #004a99; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .psn-container { display: flex; overflow-x: auto; padding: 20px 10px; gap: 20px; align-items: flex-start; min-height: calc(100vh - 100px); }
-        .psn-card { min-width: 350px; max-width: 350px; background: #fff; border-radius: 12px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
-        .psn-header { padding: 15px; border-radius: 12px 12px 0 0; color: white; }
-        .pila-impegni { padding: 15px; min-height: 400px; background-color: #fafafa; border: 2px dashed transparent; transition: all 0.3s ease; flex-grow: 1; }
-        .pila-impegni.sortable-chosen { border-color: #004a99; background-color: #eef6ff; }
-        
-        .tessera { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; position: relative; transition: transform 0.2s; border-left: 6px solid #ccc; }
-        .tessera:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-        .tessera:active { cursor: grabbing; transform: scale(1.02); }
-        .tessera.personale { border-left-color: #198754; } 
-        .tessera.materiale { border-left-color: #ffc107; } 
-        .tessera.storico { border-left-color: #6c757d; background-color: #f8f9fa; opacity: 0.6; cursor: not-allowed; }
-        .tessera-info { font-size: 0.85rem; margin-top: 5px; color: #666; }
-        
-        .psn-container::-webkit-scrollbar { height: 10px; }
-        .psn-container::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 5px; }
-        .label-small { font-size: 0.65rem; font-weight: bold; }
-        .edit-icon { opacity: 0.6; transition: opacity 0.2s; cursor: pointer; }
-        .edit-icon:hover { opacity: 1; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
@@ -64,10 +43,15 @@
                 
                 <div id="impegni-liberi" class="pila-impegni" data-psn-id="null" style="min-height: 70vh;">
                     {% for imp in impegni_liberi %}
-                    <div class="tessera {{ imp.tipo.lower() }}" data-id="{{ imp.id }}" onclick="apriDettaglioImpegno('{{ imp.id }}')">
+                    {% set t_class = imp.tipo.lower() if imp.tipo.lower() in ['personale', 'materiale', 'altro'] else 'custom-type' %}
+                    <div class="tessera {{ t_class }}" data-id="{{ imp.id }}" onclick="apriDettaglioImpegno('{{ imp.id }}')">
                         <div class="fw-bold">
                             {{ imp.titolo }} 
-                            {% if imp.numero_nota %}<span class="text-muted small fw-normal ms-1">(Nota {{ imp.numero_nota }})</span>{% endif %}
+                            {% if imp.numero_nota %}
+                                <span class="text-muted small fw-normal ms-1">
+                                    (Nota {{ imp.numero_nota }}{% if imp.data_nota %} del {{ imp.data_nota.strftime('%d/%m/%Y') }}{% endif %})
+                                </span>
+                            {% endif %}
                         </div>
                         <div class="tessera-info">
                             <span><i class="fas fa-tag me-1"></i>{{ imp.tipo }}</span><br>
@@ -80,18 +64,43 @@
         </div>
 
         <div class="col-md-9">
-            <div class="psn-container">
+            <div class="bg-white p-2 mb-2 mx-2 rounded shadow-sm d-flex gap-3 align-items-center">
+                <span class="fw-bold text-muted small"><i class="fas fa-filter me-1"></i> FILTRA:</span>
+                <input type="text" id="filterText" class="form-control form-control-sm w-25" placeholder="Cerca progetto, referente, conto...">
+                <select id="filterAnno" class="form-select form-select-sm w-auto">
+                    <option value="">Tutti gli anni</option>
+                    {% set anni = [] %}
+                    {% for p in progetti %}
+                        {% if p.anno_riferimento not in anni %}
+                            {% set _ = anni.append(p.anno_riferimento) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for anno in anni|sort(reverse=True) %}
+                    <option value="{{ anno }}">{{ anno }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetFiltri()" title="Azzera filtri">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="psn-container" id="psnContainer">
                 {% for p in progetti %}
-                <div class="psn-card">
+                <div class="psn-card" data-anno="{{ p.anno_riferimento }}" data-testo="{{ p.azioni|lower }} {{ p.referenti|lower }} {{ p.conti_aziendali|lower }}">
                     <div class="psn-header {{ p.badge_colore }}">
                         <div class="d-flex justify-content-between align-items-start">
-                            <h6 class="mb-0 fw-bold pe-2" title="{{ p.azioni }}">
-                                {{ p.azioni }}
+                            <h6 class="mb-0 fw-bold pe-2" title="Titolo: {{ p.azioni }}&#10;Conto reale: {{ p.conti_aziendali }}">
+                                <span class="text-warning">[{{ p.conto_principale }}]</span> {{ p.azioni }}
                                 <i class="fas fa-edit ms-2 edit-icon" onclick="apriDettaglioProgetto('{{ p.id }}')"></i>
                             </h6>
+
                             <div class="text-end" style="min-width: 80px;">
                                 <span class="badge bg-white text-dark mb-1 d-block" style="font-size: 0.65rem;">ASS: {{ p.anno_assegnazione }}</span>
                                 <span class="badge bg-white text-dark d-block" style="font-size: 0.65rem;">RIF: {{ p.anno_riferimento }}</span>
+                                <div class="mt-2 text-end">
+                                    <i class="fas fa-sticky-note note-icon {% if p.note_testuali|length > 0 %}text-warning opacity-100{% endif %}" 
+                                       onclick="apriNotePSN('{{ p.id }}')" title="Note Progetto"></i>
+                                </div>
                             </div>
                         </div>
                         <div class="mt-2 small d-flex justify-content-between align-items-end">
@@ -104,16 +113,32 @@
                     
                     <div class="p-3 bg-light border-bottom">
                         <div class="row text-center">
-                            <div class="col-6 border-end">
-                                <div class="text-muted text-uppercase label-small">Disp. con Det.</div>
-                                <div class="fw-bold {% if p.disponibilita_odierna < 0 %}text-danger{% endif %}">
+                            <div class="col-4 border-end px-1">
+                                <div class="text-muted text-uppercase label-small" title="Disponibilità con Determine/Delibere">Disp. con Det/Del.</div>
+                                <div class="fw-bold {% if p.disponibilita_odierna < 0 %}text-danger{% endif %}" style="font-size: 0.9rem;">
                                     € {{ "{:,.2f}".format(p.disponibilita_odierna) }}
                                 </div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-4 border-end px-1">
                                 <div class="text-muted text-uppercase label-small">Disp. con Imp.</div>
-                                <div class="fw-bold {% if p.disponibilita_con_impegni < 0 %}text-danger{% endif %}">
+                                <div class="fw-bold {% if p.disponibilita_con_impegni < 0 %}text-danger{% endif %}" style="font-size: 0.9rem;">
                                     € {{ "{:,.2f}".format(p.disponibilita_con_impegni) }}
+                                </div>
+                            </div>
+                            <div class="col-4 px-1">
+                                <div class="text-muted text-uppercase label-small">
+                                    Disp. Com.
+                                    <i class="fas fa-edit ms-1 edit-icon text-primary" onclick="apriModificaDisp('{{ p.id }}', '{{ p.disponibilita_comunicata_effettiva }}', '{{ p.data_disp_comunicata.strftime('%Y-%m-%d') if p.data_disp_comunicata else '' }}')"></i>
+                                </div>
+                                <div class="fw-bold text-info" style="font-size: 0.9rem;">
+                                    € {{ "{:,.2f}".format(p.disponibilita_comunicata_effettiva) }}
+                                </div>
+                                <div style="font-size: 0.6rem;" class="text-muted mt-1">
+                                    {% if p.data_disp_comunicata %}
+                                        Agg. {{ p.data_disp_comunicata.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        (Iniziale)
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -121,23 +146,52 @@
 
                     <div class="pila-impegni" data-psn-id="{{ p.id }}">
                         {% for ass in p.assegnazioni %}
-                        <div class="tessera {{ ass.impegno.tipo.lower() if not ass.storico else 'storico' }}" 
-                             data-id="{{ ass.impegno.id }}" 
-                             onclick="apriDettaglioImpegno('{{ ass.impegno.id }}')">
-                            <div class="fw-bold">
-                                {{ ass.impegno.titolo }}
-                                {% if ass.impegno.numero_nota %}<span class="text-muted small fw-normal ms-1">(Nota {{ ass.impegno.numero_nota }})</span>{% endif %}
+                        {% if not ass.storico %}
+                            {% set t_lower = ass.impegno.tipo.lower() %}
+                            {% set t_class = t_lower if t_lower in ['personale', 'materiale', 'altro'] else 'custom-type' %}
+                            {% set is_locked = 'locked' if ass.impegno.num_determina else '' %}
+                            <div class="tessera {{ t_class }} {{ is_locked }}" data-id="{{ ass.impegno.id }}" onclick="apriDettaglioImpegno('{{ ass.impegno.id }}')">
+                                <div class="fw-bold">
+                                    {{ ass.impegno.titolo }}
+                                    {% if ass.impegno.numero_nota %}
+                                        <span class="text-muted small fw-normal ms-1">
+                                            (Nota {{ ass.impegno.numero_nota }}{% if ass.impegno.data_nota %} del {{ ass.impegno.data_nota.strftime('%d/%m/%Y') }}{% endif %})
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="tessera-info">
+                                    <span class="fw-bold text-dark">€ {{ "{:,.2f}".format(ass.costo_assegnato) }}</span>
+                                    {% if ass.impegno.num_determina %}
+                                    {% set uff_abbr = 'Del.' if ass.impegno.tipo_ufficializzazione == 'Delibera' else 'Det.' %}
+                                    <br><span class="badge bg-primary mt-1" style="font-size: 0.65rem;"><i class="fas fa-lock me-1"></i>{{ uff_abbr }} {{ ass.impegno.num_determina }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="tessera-info">
-                                <span class="fw-bold text-dark">€ {{ "{:,.2f}".format(ass.costo_assegnato) }}</span>
-                                {% if ass.storico %}
-                                <br><span class="badge bg-secondary mt-1" style="font-size: 0.65rem;">STORICO</span>
-                                {% endif %}
-                                {% if not ass.storico and ass.impegno.num_determina %}
-                                <br><span class="badge bg-primary mt-1" style="font-size: 0.65rem;">Det. {{ ass.impegno.num_determina }}</span>
-                                {% endif %}
+                        {% endif %}
+                        {% endfor %}
+
+                        {% set ns = namespace(has_storico=false) %}
+                        {% for ass in p.assegnazioni %}
+                        {% if ass.storico %}
+                            {% if not ns.has_storico %}
+                                <div class="w-100 mt-4 mb-2 border-top border-2 border-secondary opacity-50" style="border-style: dashed !important;"></div>
+                                <div class="text-center text-secondary small fw-bold mb-2"><i class="fas fa-history me-1"></i> STORICO</div>
+                                {% set ns.has_storico = true %}
+                            {% endif %}
+                            <div class="tessera storico" data-id="{{ ass.impegno.id }}" onclick="apriDettaglioImpegno('{{ ass.impegno.id }}')">
+                                <div class="fw-bold">
+                                    {{ ass.impegno.titolo }}
+                                    {% if ass.impegno.numero_nota %}
+                                        <span class="text-muted small fw-normal ms-1">
+                                            (Nota {{ ass.impegno.numero_nota }}{% if ass.impegno.data_nota %} del {{ ass.impegno.data_nota.strftime('%d/%m/%Y') }}{% endif %})
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="tessera-info">
+                                    <span class="fw-bold text-dark">€ {{ "{:,.2f}".format(ass.costo_assegnato) }}</span>
+                                </div>
                             </div>
-                        </div>
+                        {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -147,310 +201,25 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalDettaglioImpegno" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form id="formEditImpegno" method="post">
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title" id="modalImpegnoTitle"><i class="fas fa-edit me-2"></i>Pannello Impegno</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-8 mb-3">
-                            <label class="form-label text-muted small fw-bold">Titolo / Oggetto</label>
-                            <input type="text" name="titolo" id="edit_titolo" class="form-control" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small fw-bold">Tipologia</label>
-                            <select name="tipo" id="edit_tipo" class="form-select">
-                                <option value="Personale">Personale</option>
-                                <option value="Materiale">Materiale</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small fw-bold">Costo Originale (€)</label>
-                            <input type="number" name="costo_previsto" id="edit_costo_previsto" class="form-control fw-bold text-primary" step="0.01" required>
-                        </div>
-                        <div class="col-md-8 mb-3">
-                            <label class="form-label text-muted small fw-bold">Note Libere</label>
-                            <input type="text" name="note" id="edit_note" class="form-control" placeholder="Inserisci note aggiuntive...">
-                        </div>
-                    </div>
-                    
-                    <div class="row bg-light p-2 rounded">
-                        <h6 class="mb-3 text-secondary"><i class="fas fa-file-signature me-2"></i>Fase 1: Dati Nota (Richiesta)</h6>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted small fw-bold">Numero Nota</label>
-                            <input type="text" name="numero_nota" id="edit_numero_nota" class="form-control">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted small fw-bold">Data Nota</label>
-                            <input type="date" name="data_nota" id="edit_data_nota" class="form-control">
-                        </div>
-                    </div>
-
-                    <div class="row p-2 mt-2 border rounded">
-                        <h6 class="mb-3 text-primary"><i class="fas fa-stamp me-2"></i>Fase 2: Dati Determina (Ufficializzazione)</h6>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small fw-bold">Numero Determina</label>
-                            <input type="text" name="num_determina" id="edit_num_determina" class="form-control border-primary">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small fw-bold">Data Determina</label>
-                            <input type="date" name="data_determina" id="edit_data_determina" class="form-control border-primary">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small fw-bold">Costo Definitivo (€)</label>
-                            <input type="number" name="costo_determina" id="edit_costo_determina" class="form-control border-primary" step="0.01">
-                        </div>
-                    </div>
-
-                    <div id="sezione-ripartizione" class="row p-2 mt-3 bg-light rounded" style="display:none;">
-                        <h6 class="mb-2 text-dark"><i class="fas fa-sitemap me-2"></i>Fase 3: Ripartizione Costi tra Conti PSN</h6>
-                        <p class="small text-muted mb-2">Da qui puoi spezzare l'impegno assegnando quote diverse a conti diversi.</p>
-                        <div id="ripartizione-rows"></div>
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="aggiungiRigaRipartizione()">
-                                <i class="fas fa-plus"></i> Aggiungi Quota su altro Conto
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer d-flex justify-content-between">
-                    <button type="button" class="btn btn-danger" id="btnEliminaImpegno" onclick="eliminaImpegno()">
-                        <i class="fas fa-trash me-1"></i> Elimina
-                    </button>
-                    <div>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salva</button>
-                    </div>
-                </div>
-            </form>
-            <form id="formDeleteImpegno" method="post" style="display: none;"></form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalDettaglioPSN" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="formEditPSN" method="post" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalPSNTitle">Progetto PSN</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-6 mb-3">
-                        <label class="form-label">Anno Assegnazione</label>
-                        <input type="number" name="anno_assegnazione" id="psn_anno_assegnazione" class="form-control" required>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <label class="form-label">Anno Riferimento</label>
-                        <input type="number" name="anno_riferimento" id="psn_anno_riferimento" class="form-control" required>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Referente</label>
-                    <input type="text" name="referenti" id="psn_referenti" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Quota Assegnata (€)</label>
-                    <input type="number" name="quota_assegnata" id="psn_quota_assegnata" class="form-control" step="0.01" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Conti Aziendali</label>
-                    <input type="text" name="conti_aziendali" id="psn_conti_aziendali" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Azioni / Titolo</label>
-                    <textarea name="azioni" id="psn_azioni" class="form-control" rows="3"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer d-flex justify-content-between">
-                <button type="button" class="btn btn-danger" id="btnEliminaPSN" onclick="eliminaProgetto()">
-                    <i class="fas fa-trash me-1"></i> Elimina
-                </button>
-                <div>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salva</button>
-                </div>
-            </div>
-        </form>
-        <form id="formDeletePSN" method="post" style="display: none;"></form>
-    </div>
-</div>
+{% include 'modals/impegno.html' %}
+{% include 'modals/progetto.html' %}
+{% include 'modals/note.html' %}
+{% include 'modals/disp_comunicata.html' %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <script>
-    const listaPSN = [
-        {% for p in progetti %}
-        { id: {{ p.id }}, titolo: "{{ p.azioni[:40] | replace('"', '\\"') }}... ({{ p.anno_riferimento }})" },
-        {% endfor %}
-    ];
-
-    const containers = document.querySelectorAll('.pila-impegni');
-    containers.forEach(container => {
-        new Sortable(container, {
-            group: 'psn-group',
-            animation: 150,
-            fallbackOnBody: true,
-            swapThreshold: 0.65,
-            filter: '.storico',
-            onAdd: function (evt) {
-                const impegnoId = evt.item.getAttribute('data-id');
-                const nuovoPsnId = evt.to.getAttribute('data-psn-id');
-                const vecchioPsnId = evt.from.getAttribute('data-psn-id');
-                
-                fetch('/api/assegna_impegno', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        impegno_id: impegnoId, 
-                        progetto_id: nuovoPsnId,
-                        vecchio_progetto_id: vecchioPsnId
-                    })
-                }).then(res => res.json()).then(data => {
-                    if(data.status === 'success') window.location.reload();
-                });
-            }
-        });
-    });
-
-    const modalDettaglioImpegno = new bootstrap.Modal(document.getElementById('modalDettaglioImpegno'));
-    const modalDettaglioPSN = new bootstrap.Modal(document.getElementById('modalDettaglioPSN'));
-
-    // --- FUNZIONI PSN ---
-    function apriNuovoProgetto() {
-        document.getElementById('formEditPSN').reset();
-        document.getElementById('formEditPSN').action = '/api/progetto/nuovo';
-        
-        // Valori di default
-        document.getElementById('psn_anno_assegnazione').value = 2024;
-        document.getElementById('psn_anno_riferimento').value = 2024;
-
-        document.getElementById('modalPSNTitle').innerHTML = '<i class="fas fa-folder-plus me-2"></i>Nuovo Progetto PSN';
-        document.getElementById('btnEliminaPSN').style.display = 'none';
-        
-        modalDettaglioPSN.show();
-    }
-
-    function apriDettaglioProgetto(id) {
-        document.getElementById('formEditPSN').reset();
-        document.getElementById('formEditPSN').action = `/api/progetto/${id}/edit`;
-        document.getElementById('formDeletePSN').action = `/api/progetto/${id}/delete`;
-        
-        document.getElementById('modalPSNTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Progetto PSN';
-        document.getElementById('btnEliminaPSN').style.display = 'block';
-
-        fetch(`/api/progetto/${id}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('psn_anno_assegnazione').value = data.anno_assegnazione;
-                document.getElementById('psn_anno_riferimento').value = data.anno_riferimento;
-                document.getElementById('psn_referenti').value = data.referenti;
-                document.getElementById('psn_quota_assegnata').value = data.quota_assegnata;
-                document.getElementById('psn_conti_aziendali').value = data.conti_aziendali;
-                document.getElementById('psn_azioni').value = data.azioni;
-                
-                modalDettaglioPSN.show();
-            });
-    }
-
-    function eliminaProgetto() {
-        if(confirm("Sei sicuro di voler eliminare questo Progetto PSN? Tutte le spese in esso contenute verranno rimesse in 'Da Assegnare'.")) {
-            document.getElementById('formDeletePSN').submit();
-        }
-    }
-
-    // --- FUNZIONI IMPEGNO ---
-    function apriNuovoImpegno() {
-        document.getElementById('formEditImpegno').reset();
-        document.getElementById('formEditImpegno').action = '/api/impegno/nuovo';
-        
-        document.getElementById('modalImpegnoTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuova Tessera Impegno';
-        document.getElementById('btnEliminaImpegno').style.display = 'none'; 
-        document.getElementById('sezione-ripartizione').style.display = 'none'; 
-        
-        modalDettaglioImpegno.show();
-    }
-
-    function creaRigaRipartizione(psnIdSelezionato, costo) {
-        let options = '<option value="">Seleziona un Progetto PSN...</option>';
-        listaPSN.forEach(p => {
-            options += `<option value="${p.id}" ${p.id == psnIdSelezionato ? 'selected' : ''}>${p.titolo}</option>`;
-        });
-
-        return `
-            <div class="row ripartizione-riga mb-2 align-items-center">
-                <div class="col-8">
-                    <select name="progetto_id[]" class="form-select form-select-sm" required>
-                        ${options}
-                    </select>
-                </div>
-                <div class="col-3">
-                    <input type="number" name="costo_ripartito[]" class="form-control form-control-sm" value="${costo}" step="0.01" placeholder="Quota €" required>
-                </div>
-                <div class="col-1 text-end">
-                    <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="this.closest('.ripartizione-riga').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    function aggiungiRigaRipartizione() {
-        document.getElementById('ripartizione-rows').insertAdjacentHTML('beforeend', creaRigaRipartizione('', ''));
-    }
-
-    function apriDettaglioImpegno(id) {
-        document.getElementById('formEditImpegno').reset();
-        document.getElementById('formEditImpegno').action = `/api/impegno/${id}/edit`;
-        document.getElementById('formDeleteImpegno').action = `/api/impegno/${id}/delete`;
-        
-        document.getElementById('modalImpegnoTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Pannello Impegno';
-        document.getElementById('btnEliminaImpegno').style.display = 'block'; 
-
-        fetch(`/api/impegno/${id}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('edit_titolo').value = data.titolo;
-                document.getElementById('edit_tipo').value = data.tipo;
-                document.getElementById('edit_costo_previsto').value = data.costo_previsto;
-                document.getElementById('edit_note').value = data.note;
-                
-                document.getElementById('edit_numero_nota').value = data.numero_nota;
-                document.getElementById('edit_data_nota').value = data.data_nota;
-                
-                document.getElementById('edit_num_determina').value = data.num_determina;
-                document.getElementById('edit_data_determina').value = data.data_determina;
-                document.getElementById('edit_costo_determina').value = data.costo_determina;
-                
-                const divRipartizione = document.getElementById('sezione-ripartizione');
-                const containerRows = document.getElementById('ripartizione-rows');
-                containerRows.innerHTML = ''; 
-
-                if (data.allocazioni && data.allocazioni.length > 0) {
-                    divRipartizione.style.display = 'block';
-                    data.allocazioni.forEach(all => {
-                        containerRows.insertAdjacentHTML('beforeend', creaRigaRipartizione(all.progetto_id, all.costo));
-                    });
-                } else {
-                    divRipartizione.style.display = 'none'; 
-                }
-
-                modalDettaglioImpegno.show();
-            });
-    }
-
-    function eliminaImpegno() {
-        if(confirm("Sei sicuro di voler eliminare definitivamente questo impegno e tutte le sue assegnazioni?")) {
-            document.getElementById('formDeleteImpegno').submit();
-        }
-    }
+    window.APP_DATA = {
+        listaPSN: [
+            {% for p in progetti %}
+            { id: {{ p.id }}, titolo: "[{{ p.conto_principale }}] {{ p.azioni[:40] | replace('"', '\\"') }}... ({{ p.anno_riferimento }})" },
+            {% endfor %}
+        ]
+    };
 </script>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
 </body>
 </html>

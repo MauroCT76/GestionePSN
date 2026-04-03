@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, send_file
 from app import db
-from app.models.progetto import ProgettoPSN
+from app.models.progetto import ProgettoPSN, NotaPSN
 from app.models.impegno import Impegno, AssegnazioneImpegno
 from app.utils.excel_handler import import_psn_from_excel, export_to_original_format
 import io
@@ -44,7 +44,9 @@ def nuovo_impegno():
     data = request.form
     titolo = data.get('titolo')
     costo = data.get('costo_previsto', 0)
-    tipo = data.get('tipo')
+    
+    tipo_select = data.get('tipo_select')
+    tipo = data.get('tipo_custom') if tipo_select == 'custom' else tipo_select
     
     nuovo = Impegno(
         tipo=tipo,
@@ -52,6 +54,7 @@ def nuovo_impegno():
         costo_previsto=float(costo) if costo else 0.0,
         note=data.get('note'),
         numero_nota=data.get('numero_nota'),
+        tipo_ufficializzazione=data.get('tipo_ufficializzazione', 'Determina'),
         stato_logico='da_assegnare'
     )
     
@@ -93,12 +96,12 @@ def assegna_impegno():
     vecchio_progetto_id = data.get('vecchio_progetto_id')
     
     impegno = Impegno.query.get_or_404(impegno_id)
+    if impegno.num_determina:
+        return jsonify({"status": "error", "message": "Impegno definitivo, non spostabile."})
     
     if vecchio_progetto_id and vecchio_progetto_id != 'null':
         assegnazione_attiva = AssegnazioneImpegno.query.filter_by(
-            impegno_id=impegno_id, 
-            progetto_id=vecchio_progetto_id, 
-            storico=False
+            impegno_id=impegno_id, progetto_id=vecchio_progetto_id, storico=False
         ).first()
     else:
         assegnazione_attiva = None
@@ -120,8 +123,7 @@ def assegna_impegno():
             quota_spostata = impegno.costo_previsto
         
         assegnazione_target = AssegnazioneImpegno.query.filter_by(
-            impegno_id=impegno_id, 
-            progetto_id=progetto_id
+            impegno_id=impegno_id, progetto_id=progetto_id
         ).first()
 
         if assegnazione_target:
@@ -129,10 +131,8 @@ def assegna_impegno():
             assegnazione_target.costo_assegnato = quota_spostata
         else:
             nuova_ass = AssegnazioneImpegno(
-                impegno_id=impegno_id,
-                progetto_id=progetto_id,
-                costo_assegnato=quota_spostata,
-                storico=False
+                impegno_id=impegno_id, progetto_id=progetto_id,
+                costo_assegnato=quota_spostata, storico=False
             )
             db.session.add(nuova_ass)
             
@@ -147,34 +147,33 @@ def get_impegno(id):
     allocazioni = []
     for ass in imp.assegnazioni:
         if not ass.storico:
-            allocazioni.append({
-                'progetto_id': ass.progetto_id,
-                'costo': ass.costo_assegnato
-            })
+            allocazioni.append({'progetto_id': ass.progetto_id, 'costo': ass.costo_assegnato})
     return jsonify({
-        'id': imp.id,
-        'titolo': imp.titolo,
-        'tipo': imp.tipo,
-        'costo_previsto': imp.costo_previsto,
-        'note': imp.note or '',
-        'numero_nota': imp.numero_nota or '',
+        'id': imp.id, 'titolo': imp.titolo, 'tipo': imp.tipo, 'costo_previsto': imp.costo_previsto,
+        'note': imp.note or '', 'numero_nota': imp.numero_nota or '',
         'data_nota': imp.data_nota.strftime('%Y-%m-%d') if imp.data_nota else '',
+        'tipo_ufficializzazione': imp.tipo_ufficializzazione or 'Determina',
         'num_determina': imp.num_determina or '',
         'data_determina': imp.data_determina.strftime('%Y-%m-%d') if imp.data_determina else '',
-        'costo_determina': imp.costo_determina or '',
-        'allocazioni': allocazioni
+        'costo_determina': imp.costo_determina or '', 'allocazioni': allocazioni
     })
 
 @main_bp.route('/api/impegno/<int:id>/edit', methods=['POST'])
 def edit_impegno(id):
     imp = Impegno.query.get_or_404(id)
     data = request.form
+    if imp.num_determina:
+        imp.note = data.get('note')
+        db.session.commit()
+        return redirect(url_for('main.index'))
     
     imp.titolo = data.get('titolo')
-    imp.tipo = data.get('tipo')
+    tipo_select = data.get('tipo_select')
+    imp.tipo = data.get('tipo_custom') if tipo_select == 'custom' else tipo_select
     imp.costo_previsto = float(data.get('costo_previsto') or 0.0)
     imp.note = data.get('note')
     imp.numero_nota = data.get('numero_nota')
+    imp.tipo_ufficializzazione = data.get('tipo_ufficializzazione', 'Determina')
     
     data_n = data.get('data_nota')
     imp.data_nota = datetime.strptime(data_n, '%Y-%m-%d').date() if data_n else None
@@ -192,7 +191,6 @@ def edit_impegno(id):
     if psn_ids and costi:
         nuove_quote = {int(p): float(c) for p, c in zip(psn_ids, costi) if p}
         assegnazioni_attive = AssegnazioneImpegno.query.filter_by(impegno_id=id, storico=False).all()
-        
         for ass in assegnazioni_attive:
             if ass.progetto_id not in nuove_quote:
                 ass.storico = True
@@ -208,7 +206,6 @@ def edit_impegno(id):
             else:
                 nuova_ass = AssegnazioneImpegno(impegno_id=id, progetto_id=p_id, costo_assegnato=c, storico=False)
                 db.session.add(nuova_ass)
-                
     else:
         ass_attive = AssegnazioneImpegno.query.filter_by(impegno_id=id, storico=False).all()
         if len(ass_attive) == 1:
@@ -220,23 +217,20 @@ def edit_impegno(id):
 @main_bp.route('/api/impegno/<int:id>/delete', methods=['POST'])
 def delete_impegno(id):
     imp = Impegno.query.get_or_404(id)
+    if imp.num_determina: return redirect(url_for('main.index'))
     db.session.delete(imp)
     db.session.commit()
     return redirect(url_for('main.index'))
-
-# --- NUOVE ROTTE PER I PROGETTI PSN ---
 
 @main_bp.route('/api/progetto/<int:id>', methods=['GET'])
 def get_progetto(id):
     p = ProgettoPSN.query.get_or_404(id)
     return jsonify({
-        'id': p.id,
-        'anno_assegnazione': p.anno_assegnazione,
-        'anno_riferimento': p.anno_riferimento,
-        'referenti': p.referenti,
-        'quota_assegnata': p.quota_assegnata,
-        'conti_aziendali': p.conti_aziendali or '',
-        'azioni': p.azioni or ''
+        'id': p.id, 'anno_assegnazione': p.anno_assegnazione, 'anno_riferimento': p.anno_riferimento,
+        'referenti': p.referenti, 'quota_assegnata': p.quota_assegnata,
+        'conti_aziendali': p.conti_aziendali or '', 'azioni': p.azioni or '',
+        'disp_comunicata': p.disp_comunicata or '', 
+        'data_disp_comunicata': p.data_disp_comunicata.strftime('%Y-%m-%d') if p.data_disp_comunicata else ''
     })
 
 @main_bp.route('/api/progetto/<int:id>/edit', methods=['POST'])
@@ -249,19 +243,84 @@ def edit_progetto(id):
     p.quota_assegnata = float(data.get('quota_assegnata', 0.0))
     p.conti_aziendali = data.get('conti_aziendali', '')
     p.azioni = data.get('azioni', '')
+    
+    disp_val = data.get('disp_comunicata')
+    if disp_val:
+        p.disp_comunicata = float(disp_val)
+    else:
+        p.disp_comunicata = None
+        
+    data_val = data.get('data_disp_comunicata')
+    if data_val:
+        p.data_disp_comunicata = datetime.strptime(data_val, '%Y-%m-%d').date()
+    else:
+        p.data_disp_comunicata = None
+
     db.session.commit()
     return redirect(url_for('main.index'))
 
 @main_bp.route('/api/progetto/<int:id>/delete', methods=['POST'])
 def delete_progetto(id):
     p = ProgettoPSN.query.get_or_404(id)
-    
-    # Protezione dati: rimetto in "Da Assegnare" gli impegni attivi prima di eliminare il PSN
     for ass in p.assegnazioni:
         if not ass.storico:
             ass.impegno.stato_logico = 'da_assegnare'
         db.session.delete(ass)
-        
     db.session.delete(p)
     db.session.commit()
     return redirect(url_for('main.index'))
+
+# --- NUOVA ROTTA: AGGIORNAMENTO RAPIDO DISPONIBILITA' ---
+@main_bp.route('/api/progetto/<int:id>/disp', methods=['POST'])
+def update_disp_comunicata(id):
+    p = ProgettoPSN.query.get_or_404(id)
+    val = request.form.get('disp_comunicata')
+    data_val = request.form.get('data_disp_comunicata')
+    
+    if val:
+        p.disp_comunicata = float(val)
+    else:
+        p.disp_comunicata = None
+        
+    if data_val:
+        p.data_disp_comunicata = datetime.strptime(data_val, '%Y-%m-%d').date()
+    else:
+        p.data_disp_comunicata = None
+        
+    db.session.commit()
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/api/progetto/<int:id>/note', methods=['GET', 'POST'])
+def gestisci_note_psn(id):
+    if request.method == 'POST':
+        data = request.get_json()
+        nuova_nota = NotaPSN(
+            progetto_id=id,
+            testo=data.get('testo'),
+            importante=data.get('importante', False)
+        )
+        db.session.add(nuova_nota)
+        db.session.commit()
+        return jsonify({'status': 'success'})
+    
+    note = NotaPSN.query.filter_by(progetto_id=id).order_by(NotaPSN.importante.desc(), NotaPSN.data_creazione.desc()).all()
+    return jsonify([{
+        'id': n.id,
+        'testo': n.testo,
+        'importante': n.importante,
+        'data_creazione': n.data_creazione.strftime('%d/%m/%Y %H:%M')
+    } for n in note])
+
+@main_bp.route('/api/nota/<int:id>/toggle', methods=['POST'])
+def toggle_nota(id):
+    nota = NotaPSN.query.get_or_404(id)
+    nota.importante = not nota.importante
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+@main_bp.route('/api/nota/<int:id>/delete', methods=['POST'])
+def delete_nota(id):
+    nota = NotaPSN.query.get_or_404(id)
+    db.session.delete(nota)
+    db.session.commit()
+    return jsonify({'status': 'success'})

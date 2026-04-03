@@ -1,0 +1,28 @@
+<div class="modal fade" id="modalNotePSN" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-sticky-note me-2"></i>Note del Progetto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="window.location.reload()"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body p-2">
+                        <textarea id="nuovaNotaTesto" class="form-control mb-2" rows="2" placeholder="Scrivi una nuova nota..."></textarea>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="nuovaNotaImportante">
+                                <label class="form-check-label text-warning fw-bold" for="nuovaNotaImportante">
+                                    <i class="fas fa-star"></i> Segna come Importante
+                                </label>
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="salvaNotaPSN()"><i class="fas fa-plus"></i> Aggiungi</button>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div id="listaNotePSN" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>

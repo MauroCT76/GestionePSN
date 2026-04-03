@@ -1,0 +1,29 @@
+body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+.navbar-custom { background-color: #004a99; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.psn-container { display: flex; overflow-x: auto; padding: 10px 20px; gap: 20px; align-items: flex-start; min-height: calc(100vh - 150px); }
+.psn-card { min-width: 350px; max-width: 350px; background: #fff; border-radius: 12px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; transition: all 0.3s ease; }
+.psn-header { padding: 15px; border-radius: 12px 12px 0 0; color: white; }
+.pila-impegni { padding: 15px; min-height: 400px; background-color: #fafafa; border: 2px dashed transparent; transition: all 0.3s ease; flex-grow: 1; }
+.pila-impegni.sortable-chosen { border-color: #004a99; background-color: #eef6ff; }
+
+.tessera { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; position: relative; transition: transform 0.2s; border-left: 6px solid #ccc; }
+.tessera:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+.tessera:active { cursor: grabbing; transform: scale(1.02); }
+
+.tessera.personale { border-left-color: #198754; } 
+.tessera.materiale { border-left-color: #ffc107; } 
+.tessera.altro { border-left-color: #0dcaf0; }      
+.tessera.custom-type { border-left-color: #6f42c1; } 
+.tessera.storico { border-left-color: #6c757d; background-color: #f8f9fa; opacity: 0.6; cursor: not-allowed; }
+.tessera.locked { cursor: not-allowed; opacity: 0.95; }
+.tessera.locked:active { transform: none; }
+
+.tessera-info { font-size: 0.85rem; margin-top: 5px; color: #666; }
+.psn-container::-webkit-scrollbar { height: 10px; }
+.psn-container::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 5px; }
+.label-small { font-size: 0.65rem; font-weight: bold; }
+.edit-icon { opacity: 0.6; transition: opacity 0.2s; cursor: pointer; }
+.edit-icon:hover { opacity: 1; }
+
+.note-icon { cursor: pointer; opacity: 0.7; transition: all 0.2s; font-size: 1.1rem; }
+.note-icon:hover { opacity: 1; transform: scale(1.1); }
