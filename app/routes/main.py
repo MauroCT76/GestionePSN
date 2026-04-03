@@ -144,7 +144,6 @@ def assegna_impegno():
 @main_bp.route('/api/impegno/<int:id>', methods=['GET'])
 def get_impegno(id):
     imp = Impegno.query.get_or_404(id)
-    
     allocazioni = []
     for ass in imp.assegnazioni:
         if not ass.storico:
@@ -152,7 +151,6 @@ def get_impegno(id):
                 'progetto_id': ass.progetto_id,
                 'costo': ass.costo_assegnato
             })
-
     return jsonify({
         'id': imp.id,
         'titolo': imp.titolo,
@@ -223,5 +221,47 @@ def edit_impegno(id):
 def delete_impegno(id):
     imp = Impegno.query.get_or_404(id)
     db.session.delete(imp)
+    db.session.commit()
+    return redirect(url_for('main.index'))
+
+# --- NUOVE ROTTE PER I PROGETTI PSN ---
+
+@main_bp.route('/api/progetto/<int:id>', methods=['GET'])
+def get_progetto(id):
+    p = ProgettoPSN.query.get_or_404(id)
+    return jsonify({
+        'id': p.id,
+        'anno_assegnazione': p.anno_assegnazione,
+        'anno_riferimento': p.anno_riferimento,
+        'referenti': p.referenti,
+        'quota_assegnata': p.quota_assegnata,
+        'conti_aziendali': p.conti_aziendali or '',
+        'azioni': p.azioni or ''
+    })
+
+@main_bp.route('/api/progetto/<int:id>/edit', methods=['POST'])
+def edit_progetto(id):
+    p = ProgettoPSN.query.get_or_404(id)
+    data = request.form
+    p.anno_assegnazione = int(data.get('anno_assegnazione', 2024))
+    p.anno_riferimento = int(data.get('anno_riferimento', 2024))
+    p.referenti = data.get('referenti', '')
+    p.quota_assegnata = float(data.get('quota_assegnata', 0.0))
+    p.conti_aziendali = data.get('conti_aziendali', '')
+    p.azioni = data.get('azioni', '')
+    db.session.commit()
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/api/progetto/<int:id>/delete', methods=['POST'])
+def delete_progetto(id):
+    p = ProgettoPSN.query.get_or_404(id)
+    
+    # Protezione dati: rimetto in "Da Assegnare" gli impegni attivi prima di eliminare il PSN
+    for ass in p.assegnazioni:
+        if not ass.storico:
+            ass.impegno.stato_logico = 'da_assegnare'
+        db.session.delete(ass)
+        
+    db.session.delete(p)
     db.session.commit()
     return redirect(url_for('main.index'))

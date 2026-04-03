@@ -27,6 +27,8 @@
         .psn-container::-webkit-scrollbar { height: 10px; }
         .psn-container::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 5px; }
         .label-small { font-size: 0.65rem; font-weight: bold; }
+        .edit-icon { opacity: 0.6; transition: opacity 0.2s; cursor: pointer; }
+        .edit-icon:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -35,7 +37,7 @@
     <div class="container-fluid">
         <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i>Gestione PSN Catania</a>
         <div class="d-flex align-items-center">
-            <button class="btn btn-sm btn-outline-light me-3" data-bs-toggle="modal" data-bs-target="#modalNuovoPSN">
+            <button class="btn btn-sm btn-outline-light me-3" onclick="apriNuovoProgetto()">
                 <i class="fas fa-folder-plus"></i> Nuovo PSN
             </button>
             <form action="{{ url_for('main.import_excel') }}" method="post" enctype="multipart/form-data" class="me-3">
@@ -83,7 +85,10 @@
                 <div class="psn-card">
                     <div class="psn-header {{ p.badge_colore }}">
                         <div class="d-flex justify-content-between align-items-start">
-                            <h6 class="mb-0 fw-bold pe-2" title="{{ p.azioni }}">{{ p.azioni }}</h6>
+                            <h6 class="mb-0 fw-bold pe-2" title="{{ p.azioni }}">
+                                {{ p.azioni }}
+                                <i class="fas fa-edit ms-2 edit-icon" onclick="apriDettaglioProgetto('{{ p.id }}')"></i>
+                            </h6>
                             <div class="text-end" style="min-width: 80px;">
                                 <span class="badge bg-white text-dark mb-1 d-block" style="font-size: 0.65rem;">ASS: {{ p.anno_assegnazione }}</span>
                                 <span class="badge bg-white text-dark d-block" style="font-size: 0.65rem;">RIF: {{ p.anno_riferimento }}</span>
@@ -204,16 +209,13 @@
                     <div id="sezione-ripartizione" class="row p-2 mt-3 bg-light rounded" style="display:none;">
                         <h6 class="mb-2 text-dark"><i class="fas fa-sitemap me-2"></i>Fase 3: Ripartizione Costi tra Conti PSN</h6>
                         <p class="small text-muted mb-2">Da qui puoi spezzare l'impegno assegnando quote diverse a conti diversi.</p>
-                        
                         <div id="ripartizione-rows"></div>
-                        
                         <div class="mt-2">
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="aggiungiRigaRipartizione()">
                                 <i class="fas fa-plus"></i> Aggiungi Quota su altro Conto
                             </button>
                         </div>
                     </div>
-
                 </div>
                 <div class="modal-footer d-flex justify-content-between">
                     <button type="button" class="btn btn-danger" id="btnEliminaImpegno" onclick="eliminaImpegno()">
@@ -230,45 +232,52 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalNuovoPSN" tabindex="-1">
+<div class="modal fade" id="modalDettaglioPSN" tabindex="-1">
     <div class="modal-dialog">
-        <form action="{{ url_for('main.nuovo_progetto') }}" method="post" class="modal-content">
+        <form id="formEditPSN" method="post" class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Crea Nuovo Progetto PSN</h5>
+                <h5 class="modal-title" id="modalPSNTitle">Progetto PSN</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
                     <div class="col-6 mb-3">
                         <label class="form-label">Anno Assegnazione</label>
-                        <input type="number" name="anno_assegnazione" class="form-control" value="2024" required>
+                        <input type="number" name="anno_assegnazione" id="psn_anno_assegnazione" class="form-control" required>
                     </div>
                     <div class="col-6 mb-3">
                         <label class="form-label">Anno Riferimento</label>
-                        <input type="number" name="anno_riferimento" class="form-control" value="2024" required>
+                        <input type="number" name="anno_riferimento" id="psn_anno_riferimento" class="form-control" required>
                     </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Referente</label>
-                    <input type="text" name="referenti" class="form-control" required>
+                    <input type="text" name="referenti" id="psn_referenti" class="form-control" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Quota Assegnata (€)</label>
-                    <input type="number" name="quota_assegnata" class="form-control" step="0.01" required>
+                    <input type="number" name="quota_assegnata" id="psn_quota_assegnata" class="form-control" step="0.01" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Conti Aziendali</label>
-                    <input type="text" name="conti_aziendali" class="form-control">
+                    <input type="text" name="conti_aziendali" id="psn_conti_aziendali" class="form-control">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Azioni / Titolo</label>
-                    <textarea name="azioni" class="form-control" rows="2"></textarea>
+                    <textarea name="azioni" id="psn_azioni" class="form-control" rows="3"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Salva Progetto</button>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-danger" id="btnEliminaPSN" onclick="eliminaProgetto()">
+                    <i class="fas fa-trash me-1"></i> Elimina
+                </button>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salva</button>
+                </div>
             </div>
         </form>
+        <form id="formDeletePSN" method="post" style="display: none;"></form>
     </div>
 </div>
 
@@ -310,18 +319,62 @@
         });
     });
 
-    const modalDettaglio = new bootstrap.Modal(document.getElementById('modalDettaglioImpegno'));
+    const modalDettaglioImpegno = new bootstrap.Modal(document.getElementById('modalDettaglioImpegno'));
+    const modalDettaglioPSN = new bootstrap.Modal(document.getElementById('modalDettaglioPSN'));
 
-    // NUOVA FUNZIONE PER CREARE UN IMPEGNO
+    // --- FUNZIONI PSN ---
+    function apriNuovoProgetto() {
+        document.getElementById('formEditPSN').reset();
+        document.getElementById('formEditPSN').action = '/api/progetto/nuovo';
+        
+        // Valori di default
+        document.getElementById('psn_anno_assegnazione').value = 2024;
+        document.getElementById('psn_anno_riferimento').value = 2024;
+
+        document.getElementById('modalPSNTitle').innerHTML = '<i class="fas fa-folder-plus me-2"></i>Nuovo Progetto PSN';
+        document.getElementById('btnEliminaPSN').style.display = 'none';
+        
+        modalDettaglioPSN.show();
+    }
+
+    function apriDettaglioProgetto(id) {
+        document.getElementById('formEditPSN').reset();
+        document.getElementById('formEditPSN').action = `/api/progetto/${id}/edit`;
+        document.getElementById('formDeletePSN').action = `/api/progetto/${id}/delete`;
+        
+        document.getElementById('modalPSNTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Progetto PSN';
+        document.getElementById('btnEliminaPSN').style.display = 'block';
+
+        fetch(`/api/progetto/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('psn_anno_assegnazione').value = data.anno_assegnazione;
+                document.getElementById('psn_anno_riferimento').value = data.anno_riferimento;
+                document.getElementById('psn_referenti').value = data.referenti;
+                document.getElementById('psn_quota_assegnata').value = data.quota_assegnata;
+                document.getElementById('psn_conti_aziendali').value = data.conti_aziendali;
+                document.getElementById('psn_azioni').value = data.azioni;
+                
+                modalDettaglioPSN.show();
+            });
+    }
+
+    function eliminaProgetto() {
+        if(confirm("Sei sicuro di voler eliminare questo Progetto PSN? Tutte le spese in esso contenute verranno rimesse in 'Da Assegnare'.")) {
+            document.getElementById('formDeletePSN').submit();
+        }
+    }
+
+    // --- FUNZIONI IMPEGNO ---
     function apriNuovoImpegno() {
-        document.getElementById('formEditImpegno').reset(); // Svuota i campi
+        document.getElementById('formEditImpegno').reset();
         document.getElementById('formEditImpegno').action = '/api/impegno/nuovo';
         
         document.getElementById('modalImpegnoTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuova Tessera Impegno';
-        document.getElementById('btnEliminaImpegno').style.display = 'none'; // Nascondi Elimina
-        document.getElementById('sezione-ripartizione').style.display = 'none'; // Nascondi ripartizione
+        document.getElementById('btnEliminaImpegno').style.display = 'none'; 
+        document.getElementById('sezione-ripartizione').style.display = 'none'; 
         
-        modalDettaglio.show();
+        modalDettaglioImpegno.show();
     }
 
     function creaRigaRipartizione(psnIdSelezionato, costo) {
@@ -359,7 +412,7 @@
         document.getElementById('formDeleteImpegno').action = `/api/impegno/${id}/delete`;
         
         document.getElementById('modalImpegnoTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Pannello Impegno';
-        document.getElementById('btnEliminaImpegno').style.display = 'block'; // Mostra Elimina
+        document.getElementById('btnEliminaImpegno').style.display = 'block'; 
 
         fetch(`/api/impegno/${id}`)
             .then(res => res.json())
@@ -389,7 +442,7 @@
                     divRipartizione.style.display = 'none'; 
                 }
 
-                modalDettaglio.show();
+                modalDettaglioImpegno.show();
             });
     }
 
